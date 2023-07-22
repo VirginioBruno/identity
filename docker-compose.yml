@@ -1,0 +1,32 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:latest
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: identity
+    volumes:
+      - identity_volume:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+        
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: sh -c "cd /app && dotnet ef database update --project src/identity.api --verbose"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  identity_volume:
+    

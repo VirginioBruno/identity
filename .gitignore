@@ -481,3 +481,6 @@ $RECYCLE.BIN/
 
 # Rider
 .idea
+
+# Sonarqube
+.sonarqube
