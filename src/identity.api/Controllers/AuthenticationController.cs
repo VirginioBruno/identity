@@ -13,10 +13,7 @@ public class AuthenticationController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
 
-    public AuthenticationController(IUserRepository userRepository, ILogger<AuthenticationController> logger)
-    {
-        _userRepository = userRepository;
-    }
+    public AuthenticationController(IUserRepository userRepository) => _userRepository = userRepository;
 
     [HttpPost]
     public async Task<ActionResult<AuthenticationResponse>> Post([FromBody] AuthenticationRequest request)

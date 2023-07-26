@@ -1,3 +1,4 @@
+using FluentValidation;
 using identity.api.Infrastructure;
 using identity.api.Middlewares;
 using identity.api.Repositories;
@@ -10,6 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
 services.AddControllers();
+services.AddTransient<RequestResponseMiddleware>();
+services.AddTransient<ExceptionMiddleware>();
+
+services.AddValidatorsFromAssemblyContaining<Program>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 services.AddDbContext<IdentityDbContext>(options =>
@@ -18,7 +23,6 @@ services.AddDbContext<IdentityDbContext>(options =>
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 services.AddScoped<IUserRepository, UserRepository>();
-services.AddSingleton<ExceptionMiddleware>();
 
 services.AddCors(options =>
 {
@@ -48,6 +52,7 @@ var app = builder.Build();
 app.UseRouting();
 app.MapControllers();
 app.UseCors("AllowOrigin");
+app.UseMiddleware<RequestResponseMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();

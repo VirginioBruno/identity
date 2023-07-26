@@ -1,6 +1,7 @@
+using identity.api.Infrastructure;
 using identity.api.Models;
-using identity.api.Repositories;
-using identity.api.Requests;
+using Microsoft.EntityFrameworkCore;
+using BC = BCrypt.Net.BCrypt;
 
 namespace identity.api.Utils;
 
@@ -9,19 +10,25 @@ public static class DataInitializer
     public static async Task Initialize(WebApplication app)
     {
         var scope = app.Services.CreateScope();
-        var userRepository = scope.ServiceProvider.GetService<IUserRepository>();
+        var context = scope.ServiceProvider.GetService<IdentityDbContext>();
 
-        var adminUser = await userRepository.GetByUsername("admin");
+        var adminUser = await context.Users.SingleOrDefaultAsync(u => u.Username.Equals("admin"));
         if (adminUser is not null) return;
+
+        var role = new Role { RoleName = "admin" };
+        await context.Roles.AddAsync(role);
         
-        var admin = new CreateUserRequest()
+        var admin = new User
         {
             Username = "admin",
             Email = "admin@identity.com",
-            Password = "admin",
-            RoleId = Guid.Parse("44f83de8-99ab-4aaf-b869-ffd9a47130ce")
+            HashPassword = BC.HashPassword("admin"),
+            RoleId = role.Id,
+            IsActive = true,
+            CreationAt = DateTime.Now
         };
-        
-        await userRepository.Insert((User)admin);
+
+        await context.Users.AddAsync(admin);
+        await context.SaveChangesAsync();
     }
 }
