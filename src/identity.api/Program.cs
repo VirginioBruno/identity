@@ -60,3 +60,7 @@ app.UseAuthorization();
 await DataInitializer.Initialize(app);
 
 app.Run();
+
+public partial class Program
+{
+}

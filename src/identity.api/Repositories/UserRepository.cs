@@ -14,17 +14,17 @@ public class UserRepository : IUserRepository
         _dbContext = dbContext;
     }
 
-    public async Task<User> GetByUsername(string username) =>
+    public async Task<User?> GetByUsername(string username) =>
         await _dbContext.Users
             .Include(u => u.Role)
             .SingleOrDefaultAsync(u => u.Username.Equals(username) && u.IsActive);
     
-    public async Task<User> GetById(Guid id) =>
+    public async Task<User?> GetById(Guid id) =>
         await _dbContext.Users
             .Include(u => u.Role)
             .SingleOrDefaultAsync(u => u.Id.Equals(id));
 
-    public async Task<User> GetByExpression(Expression<Func<User, bool>> expression) =>
+    public async Task<User?> GetByExpression(Expression<Func<User, bool>> expression) =>
         await _dbContext.Users
             .Include(u => u.Role)
             .SingleOrDefaultAsync(expression);
