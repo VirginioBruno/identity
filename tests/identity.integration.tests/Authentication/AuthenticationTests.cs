@@ -36,4 +36,21 @@ public class AuthenticationTests : TestBase
         result.Should().NotBeNull();
         result.IsSuccessStatusCode.Should().BeTrue();
     }
+    
+    [Fact(DisplayName = "Should not authenticate user when it does not exists on database")]
+    public async Task? AuthenticationPost_UserDoesNotExistsOnDatabase_ShouldNotAuthenticate()
+    {
+        //Arrange
+
+        //Act
+        var result = await Client.PostAsJsonAsync("/api/authentication", new
+        {
+            username = "username",
+            password = "password"
+        });
+
+        //Assert
+        result.Should().NotBeNull();
+        result.IsSuccessStatusCode.Should().BeFalse();
+    }
 }

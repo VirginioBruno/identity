@@ -8,7 +8,6 @@ namespace identity.integration.tests;
 public class TestBase : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
     protected readonly HttpClient Client;
-    protected readonly WebApplicationFactory<Program> Factory;
     protected readonly IdentityDbContext DbContext;
     private readonly IServiceScope _scope;
     private readonly PostgreSqlContainer _postgreSqlContainer = new PostgreSqlBuilder()
@@ -23,15 +22,11 @@ public class TestBase : IClassFixture<WebApplicationFactory<Program>>, IDisposab
     {
         try
         {
-            
             _postgreSqlContainer.StartAsync().Wait();
-            Factory = factory;
-            Client = Factory.CreateClient();
+            Client = factory.CreateClient();
         
-            _scope = Factory.Services.CreateScope();
+            _scope = factory.Services.CreateScope();
             DbContext = _scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        
-            ResetDatabase();
         }
         catch (Exception e)
         {
@@ -39,13 +34,7 @@ public class TestBase : IClassFixture<WebApplicationFactory<Program>>, IDisposab
         }
     }
 
-    private void ResetDatabase()
-    {
-        DbContext.Database.EnsureDeleted();
-        DbContext.Database.EnsureCreated();
-    }
-
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (disposing)
         {
