@@ -1,4 +1,4 @@
-name: .NET Build, Test and SonarCloud Analysis
+name: .NET Build, Test, and SonarCloud Analysis
 
 on:
   push:
@@ -9,27 +9,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Setup .NET
+      - name: Install .NET Core SDK
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '7.0.x' # Specify your .NET version here
+          dotnet-version: 7.0
+
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner --ignore-failed-sources
 
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build
-        run: dotnet build --no-restore
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
 
-      - name: Test with coverage
-        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./TestResults/
+      - name: Start code analysis
+        run: dotnet sonarscanner begin /k:"VirginioBruno_identity" /o:"virginiobruno" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        with:
-          projectBaseDir: ./
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Run tests
+        run: dotnet test --collect:"XPlat Code Coverage" --logger:trx
+
+      - name: End code analysis
+        run: dotnet sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
