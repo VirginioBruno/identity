@@ -1,16 +1,14 @@
-name: .NET Build and Test
+name: .NET Build, Test, and SonarCloud Analysis
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-    
-    
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
 
@@ -26,13 +24,15 @@ jobs:
         run: dotnet build --no-restore
 
       - name: Test with coverage
-        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./TestResults/ 
+        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./TestResults/
 
-      - name: SonarCloud Scan
+      - name: Analyze with SonarCloud
         uses: SonarSource/sonarcloud-github-action@master
         with:
           args: >
-            -Dsonar.coverageReportPaths=./TestResults/**/*.opencover.xml
+            begin /d:sonar.cs.opencover.reportsPaths="./TestResults/**/*.opencover.xml"
+            build
+            end
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
