@@ -11,6 +11,7 @@ public static class DataInitializer
     {
         var scope = app.Services.CreateScope();
         var context = scope.ServiceProvider.GetService<IdentityDbContext>();
+        await context.Database.MigrateAsync();
 
         var adminUser = await context.Users.SingleOrDefaultAsync(u => u.Username.Equals("admin"));
         if (adminUser is not null) return;
