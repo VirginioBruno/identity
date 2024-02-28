@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using identity.api.Repositories;
 using identity.api.Requests;
 using identity.api.Responses;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace identity.api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class AuthenticationController : ControllerBase
 {
     private readonly IUserRepository _userRepository;

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using FluentValidation;
 using identity.api.Infrastructure;
 using identity.api.Middlewares;
@@ -11,6 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
 services.AddControllers();
+
+services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+});
+
 services.AddTransient<RequestResponseMiddleware>();
 services.AddTransient<ExceptionMiddleware>();
 

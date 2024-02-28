@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using identity.api.Models;
@@ -6,8 +7,11 @@ using BC = BCrypt.Net.BCrypt;
 
 namespace identity.integration.tests.Authentication;
 
+[Collection("DatabaseCollection")]
 public class AuthenticationTests : TestBase
 {
+    private const string Route = "api/v1/authentication";
+    
     public AuthenticationTests(WebApplicationFactory<Program> factory) : base(factory)
     {
     }
@@ -26,7 +30,7 @@ public class AuthenticationTests : TestBase
         await DbContext.SaveChangesAsync();
 
         //Act
-        var result = await Client.PostAsJsonAsync("/api/authentication", new
+        var result = await Client.PostAsJsonAsync(Route, new
         {
             username,
             password
@@ -38,12 +42,11 @@ public class AuthenticationTests : TestBase
     }
     
     [Fact(DisplayName = "Should not authenticate user when it does not exists on database")]
-    public async Task? AuthenticationPost_UserDoesNotExistsOnDatabase_ShouldNotAuthenticate()
+    public async Task AuthenticationPost_UserDoesNotExistsOnDatabase_ShouldNotAuthenticate()
     {
         //Arrange
-
         //Act
-        var result = await Client.PostAsJsonAsync("/api/authentication", new
+        var result = await Client.PostAsJsonAsync(Route, new
         {
             username = "username",
             password = "password"
@@ -51,6 +54,6 @@ public class AuthenticationTests : TestBase
 
         //Assert
         result.Should().NotBeNull();
-        result.IsSuccessStatusCode.Should().BeFalse();
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }
