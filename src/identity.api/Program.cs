@@ -7,6 +7,7 @@ using identity.api.Repositories;
 using identity.api.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,29 +25,28 @@ services.AddApiVersioning(options =>
 services.AddTransient<RequestResponseMiddleware>();
 services.AddTransient<ExceptionMiddleware>();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
-services.AddDbContext<IdentityDbContext>(options =>
-    options.UseNpgsql(connectionString));
+services.AddDbContext<IdentityDbContext>((serviceProvider, options) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
+
+    options.UseNpgsql(connectionString);
+});
 
 services.AddScoped<IUserRepository, UserRepository>();
 services.AddScoped<ITokenGenerator, TokenGenerator>();
 services.AddSingleton(TimeProvider.System);
 
-var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>()
-    ?? throw new InvalidOperationException("JWT configuration is missing.");
-
-if (string.IsNullOrWhiteSpace(jwtOptions.Issuer) || string.IsNullOrWhiteSpace(jwtOptions.Audience))
-    throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
-
-if (Encoding.UTF8.GetByteCount(jwtOptions.SigningKey) < JwtOptions.MinimumSigningKeyLength)
-    throw new InvalidOperationException($"Jwt:SigningKey must contain at least {JwtOptions.MinimumSigningKeyLength} bytes.");
-
-if (jwtOptions.ExpirationMinutes <= 0)
-    throw new InvalidOperationException("Jwt:ExpirationMinutes must be greater than zero.");
-
-services.Configure<JwtOptions>(jwtSection);
+services.AddOptions<JwtOptions>()
+    .BindConfiguration(JwtOptions.SectionName)
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Issuer), "Jwt:Issuer must be configured.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Audience), "Jwt:Audience must be configured.")
+    .Validate(
+        options => Encoding.UTF8.GetByteCount(options.SigningKey) >= JwtOptions.MinimumSigningKeyLength,
+        $"Jwt:SigningKey must contain at least {JwtOptions.MinimumSigningKeyLength} bytes.")
+    .Validate(options => options.ExpirationMinutes > 0, "Jwt:ExpirationMinutes must be greater than zero.")
+    .ValidateOnStart();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 services.AddCors(options =>
@@ -59,8 +59,12 @@ services.AddCors(options =>
 });
 
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((options, jwtOptionsAccessor) =>
     {
+        var jwtOptions = jwtOptionsAccessor.Value;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
