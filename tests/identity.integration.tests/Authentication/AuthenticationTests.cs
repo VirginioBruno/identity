@@ -1,8 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
 using identity.api.Models;
-using Microsoft.AspNetCore.Mvc.Testing;
+using identity.api.Responses;
 using BC = BCrypt.Net.BCrypt;
 
 namespace identity.integration.tests.Authentication;
@@ -12,7 +11,7 @@ public class AuthenticationTests : TestBase
 {
     private const string Route = "api/v1/authentication";
     
-    public AuthenticationTests(WebApplicationFactory<Program> factory) : base(factory)
+    public AuthenticationTests(DatabaseFixture fixture) : base(fixture)
     {
     }
 
@@ -37,8 +36,9 @@ public class AuthenticationTests : TestBase
         });
 
         //Assert
-        result.Should().NotBeNull();
-        result.IsSuccessStatusCode.Should().BeTrue();
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
+        Assert.False(string.IsNullOrWhiteSpace(response?.Token));
     }
     
     [Fact(DisplayName = "Should not authenticate user when it does not exists on database")]
@@ -53,7 +53,6 @@ public class AuthenticationTests : TestBase
         });
 
         //Assert
-        result.Should().NotBeNull();
-        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        Assert.Equal(HttpStatusCode.Unauthorized, result.StatusCode);
     }
 }

@@ -1,35 +1,26 @@
 using identity.api.Infrastructure;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace identity.integration.tests;
 
-public class TestBase : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public abstract class TestBase : IDisposable
 {
     protected readonly HttpClient Client;
     protected readonly IdentityDbContext DbContext;
     private readonly IServiceScope _scope;
 
-    protected TestBase(WebApplicationFactory<Program> factory)
+    protected TestBase(DatabaseFixture fixture)
     {
-        try
-        {
-            Client = factory.CreateClient();
-        
-            _scope = factory.Services.CreateScope();
-            DbContext = _scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        }
-        catch (Exception)
-        {
-            Dispose();
-        }
+        Client = fixture.Factory.CreateClient();
+        _scope = fixture.Factory.Services.CreateScope();
+        DbContext = _scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     }
 
     private void Dispose(bool disposing)
     {
         if (!disposing) return;
-        _scope.Dispose();
         Client.Dispose();
+        _scope.Dispose();
     }
 
     public void Dispose()

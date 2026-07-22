@@ -1,32 +1,37 @@
-version: '3.9'
 services:
   db:
-    image: postgres:latest
+    image: postgres:17-alpine
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-identity} -d ${POSTGRES_DB:-identity}" ]
       interval: 10s
       timeout: 5s
       retries: 5
     environment:
-      POSTGRES_USER: username
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: identity
+      POSTGRES_USER: ${POSTGRES_USER:-identity}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-identity}
     volumes:
       - identity_volume:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-        
-  migration:
+
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
-    command: sh -c "cd /app && dotnet ef database update --project src/identity.api --verbose"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-identity};Username=${POSTGRES_USER:-identity};Password=${POSTGRES_PASSWORD}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+      BootstrapAdmin__Username: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   identity_volume:
-    

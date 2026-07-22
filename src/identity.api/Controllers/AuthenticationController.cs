@@ -14,21 +14,23 @@ namespace identity.api.Controllers;
 public class AuthenticationController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
+    private readonly ITokenGenerator _tokenGenerator;
 
-    public AuthenticationController(IUserRepository userRepository) => _userRepository = userRepository;
+    public AuthenticationController(IUserRepository userRepository, ITokenGenerator tokenGenerator)
+    {
+        _userRepository = userRepository;
+        _tokenGenerator = tokenGenerator;
+    }
 
     [HttpPost]
     public async Task<ActionResult<AuthenticationResponse>> Post([FromBody] AuthenticationRequest request)
     {
         var user = await _userRepository.GetByUsername(request.Username);
 
-        if (user is null)
-            return NotFound($"The user {request.Username} was not found");
-
-        if (!UserValidator.Validate(user.HashPassword, request.Password))
+        if (user is null || !UserValidator.Validate(user.HashPassword, request.Password))
             return Unauthorized("The username or password is invalid");
 
-        var token = TokenGenerator.Generate(user);
+        var token = _tokenGenerator.Generate(user);
         return Ok(new AuthenticationResponse(token));
     }
 }

@@ -482,5 +482,9 @@ $RECYCLE.BIN/
 # Rider
 .idea
 
+# Local environment and secrets
+.env
+!.env.example
+
 # Sonarqube
 .sonarqube

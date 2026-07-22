@@ -1,5 +1,6 @@
 using Asp.Versioning;
-using FluentValidation;
+using System.Text;
+using identity.api.Configuration;
 using identity.api.Infrastructure;
 using identity.api.Middlewares;
 using identity.api.Repositories;
@@ -23,22 +24,38 @@ services.AddApiVersioning(options =>
 services.AddTransient<RequestResponseMiddleware>();
 services.AddTransient<ExceptionMiddleware>();
 
-services.AddValidatorsFromAssemblyContaining<Program>();
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
 services.AddDbContext<IdentityDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-
 services.AddScoped<IUserRepository, UserRepository>();
+services.AddScoped<ITokenGenerator, TokenGenerator>();
+services.AddSingleton(TimeProvider.System);
 
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+var jwtOptions = jwtSection.Get<JwtOptions>()
+    ?? throw new InvalidOperationException("JWT configuration is missing.");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer) || string.IsNullOrWhiteSpace(jwtOptions.Audience))
+    throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
+
+if (Encoding.UTF8.GetByteCount(jwtOptions.SigningKey) < JwtOptions.MinimumSigningKeyLength)
+    throw new InvalidOperationException($"Jwt:SigningKey must contain at least {JwtOptions.MinimumSigningKeyLength} bytes.");
+
+if (jwtOptions.ExpirationMinutes <= 0)
+    throw new InvalidOperationException("Jwt:ExpirationMinutes must be greater than zero.");
+
+services.Configure<JwtOptions>(jwtSection);
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 services.AddCors(options =>
 {
-    options.AddPolicy("AllowOrigin",
-        b => b.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+    options.AddDefaultPolicy(policy =>
+    {
+        if (allowedOrigins.Length > 0)
+            policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader();
+    });
 });
 
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -50,23 +67,24 @@ services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = "identity",
-            ValidAudience = "client",
-            IssuerSigningKey = new SymmetricSecurityKey("token_65fb67e4-5f3b-4711-843d-07d4a5e61c72"u8.ToArray())
+            ClockSkew = TimeSpan.FromMinutes(1),
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
         };
     });
 
 var app = builder.Build();
 
-app.UseRouting();
-app.MapControllers();
-app.UseCors("AllowOrigin");
-app.UseMiddleware<RequestResponseMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<RequestResponseMiddleware>();
+app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapControllers();
 
-await DataInitializer.Initialize(app);
+await DataInitializer.InitializeAsync(app);
 
 app.Run();
 
